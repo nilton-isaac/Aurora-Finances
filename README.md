@@ -20,6 +20,8 @@ DATABASE_URL=
 DIRECT_URL=
 AURORA_WORKSPACE_KEY=default
 NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
@@ -30,14 +32,15 @@ Para a integracao atual, o que precisa estar preenchido e:
 - `DIRECT_URL`: migracao/check, usando a conexao direta na porta `5432`
 - `AURORA_WORKSPACE_KEY`: prefixo logico do snapshot salvo no banco
 - `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase usada no browser
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: chave publica usada para login do usuario
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` ou `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: chave publica atual do Supabase para login do usuario
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: alias legado aceito pelo projeto
 
-Sem `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`, o app nao consegue autenticar o usuario.
+Sem `NEXT_PUBLIC_SUPABASE_URL` e uma chave publica do Supabase, o app nao consegue autenticar o usuario.
 
 ## Supabase
 
 1. Crie um projeto no Supabase.
-2. Preencha `.env.local` com `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+2. Preencha `.env.local` com `DATABASE_URL`, `DIRECT_URL`, `NEXT_PUBLIC_SUPABASE_URL` e a chave publica do Supabase.
 3. Rode a migracao:
 
 ```bash

@@ -14,7 +14,7 @@ export async function getAuthenticatedUserId(request: Request) {
 
   if (!supabase) {
     throw new Error(
-      "NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY são obrigatórias para autenticação."
+      "NEXT_PUBLIC_SUPABASE_URL e uma chave publica do Supabase sao obrigatorias para autenticacao."
     );
   }
 

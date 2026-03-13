@@ -1,20 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/lib/supabase/types";
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/supabase/env";
 
 export function getSupabaseBrowserClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = getSupabaseUrl();
+  const publishableKey = getSupabasePublishableKey();
 
-  if (!url || !anonKey) {
+  if (!url || !publishableKey) {
     return null;
   }
 
-  return createClient<Database>(url, anonKey, {
+  return createClient<Database>(url, publishableKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true
     }
   });
 }
-

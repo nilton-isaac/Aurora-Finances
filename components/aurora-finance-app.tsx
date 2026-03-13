@@ -995,13 +995,13 @@ export default function AuroraFinanceApp() {
                 </h1>
                 <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">
                   Para liberar login, sincronizacao e isolamento por conta, configure
-                  `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` no
-                  ambiente do projeto.
+                  `NEXT_PUBLIC_SUPABASE_URL` e a chave publica do Supabase no ambiente
+                  do projeto.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <StatusRow label="NEXT_PUBLIC_SUPABASE_URL" active={false} />
-                <StatusRow label="NEXT_PUBLIC_SUPABASE_ANON_KEY" active={false} />
+                <StatusRow label="SUPABASE_PUBLISHABLE_KEY" active={false} />
                 <StatusRow label="DATABASE_URL" active />
                 <StatusRow label="DIRECT_URL" active />
               </div>
@@ -1022,7 +1022,7 @@ export default function AuroraFinanceApp() {
                   NEXT_PUBLIC_SUPABASE_URL aponta para o projeto Supabase.
                 </div>
                 <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                  NEXT_PUBLIC_SUPABASE_ANON_KEY habilita login no client.
+                  A chave publica do Supabase habilita login no client.
                 </div>
               </div>
             </Card>
