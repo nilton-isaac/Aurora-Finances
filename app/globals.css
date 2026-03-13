@@ -1,0 +1,164 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@source "../node_modules/@tremor/**/*.{js,ts,jsx,tsx}";
+
+@theme {
+  --font-sans: var(--font-outfit);
+  --color-aurora-bg: #06111f;
+  --color-aurora-panel: rgba(9, 20, 36, 0.64);
+  --color-aurora-border: rgba(255, 255, 255, 0.12);
+  --color-aurora-primary: #9fe870;
+  --color-aurora-secondary: #70d6ff;
+  --color-aurora-accent: #d29cff;
+  --color-aurora-danger: #ff7b8f;
+}
+
+@keyframes blob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(2.5rem, -2rem, 0) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-2rem, 1.5rem, 0) scale(0.92);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(112, 214, 255, 0.12), transparent 25%),
+    radial-gradient(circle at 80% 15%, rgba(210, 156, 255, 0.14), transparent 30%),
+    radial-gradient(circle at 50% 85%, rgba(159, 232, 112, 0.12), transparent 26%),
+    #04101d;
+  color: #e5edf8;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.aurora-app {
+  position: relative;
+  isolation: isolate;
+}
+
+.aurora-app::before,
+.aurora-app::after {
+  position: fixed;
+  z-index: -2;
+  content: "";
+  filter: blur(90px);
+  opacity: 0.75;
+  border-radius: 999px;
+}
+
+.aurora-app::before {
+  top: -8rem;
+  left: -7rem;
+  width: 28rem;
+  height: 28rem;
+  background: rgba(121, 87, 255, 0.32);
+  animation: blob 20s infinite ease-in-out;
+}
+
+.aurora-app::after {
+  right: -9rem;
+  bottom: -10rem;
+  width: 32rem;
+  height: 32rem;
+  background: rgba(45, 212, 191, 0.26);
+  animation: blob 24s infinite ease-in-out reverse;
+}
+
+.aurora-noise {
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(circle at center, black, transparent 85%);
+}
+
+.glass-panel {
+  background: rgba(7, 17, 31, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 60px rgba(2, 6, 23, 0.26);
+  backdrop-filter: blur(20px);
+}
+
+.section-enter {
+  animation: enter 320ms ease-out;
+}
+
+.card-flip {
+  perspective: 1200px;
+}
+
+.card-flip-inner {
+  position: relative;
+  height: 100%;
+  transition: transform 800ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-style: preserve-3d;
+}
+
+.card-flip:hover .card-flip-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 1.5rem;
+}
+
+.card-face-back {
+  transform: rotateY(180deg);
+}
+
+.tremor-base,
+.tremor-Table,
+.tremor-Card {
+  font-family: var(--font-outfit), sans-serif;
+}

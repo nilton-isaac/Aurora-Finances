@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora Finance - Dashboard Completo</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        aurora: {
+                            bg: '#020617',
+                            lime: '#84cc16',
+                            purple: '#a855f7',
+                            blue: '#3b82f6',
+                            rose: '#f43f5e',
+                            cyan: '#06b6d4'
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'glow': 'glow 2s ease-in-out infinite alternate',
+                        'slide-in': 'slideIn 0.3s ease-out forwards'
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-10px)' }
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 20px rgba(132, 204, 22, 0.3)' },
+                            '100%': { boxShadow: '0 0 40px rgba(132, 204, 22, 0.6)' }
+                        },
+                        slideIn: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        body { background-color: #020617; color: #e2e8f0; }
+        
+        .aurora-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #020617 100%);
+        }
+        .blob {
+            position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.5;
+        }
+        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: #4c1d95; animation: blob 15s infinite alternate; }
+        .blob-2 { bottom: -10%; right: -10%; width: 60vw; height: 60vw; background: #064e3b; animation: blob 20s infinite alternate-reverse; }
+        .blob-3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: #1e3a8a; animation: blob 25s infinite alternate; }
+        
+        .glass {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .glass-input {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .glass-input:focus {
+            background: rgba(0, 0, 0, 0.5);
+            border-color: #84cc16;
+            outline: none;
+            box-shadow: 0 0 15px rgba(132, 204, 22, 0.2);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .chart-container { position: relative; height: 100%; width: 100%; }
+
+        /* Main Tab Styles */
+        .main-tab-active {
+            background: linear-gradient(135deg, rgba(132, 204, 22, 0.2) 0%, rgba(132, 204, 22, 0.05) 100%);
+            border: 1px solid rgba(132, 204, 22, 0.5);
+            color: #84cc16;
+            box-shadow: 0 0 20px rgba(132, 204, 22, 0.2);
+        }
+        .main-tab-inactive {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid transparent;
+            color: #64748b;
+        }
+        .main-tab-inactive:hover {
+            background: rgba(255,255,255,0.08);
+            color: #cbd5e1;
+        }
+
+        /* Sub Tab Styles */
+        .sub-tab-active {
+            background: rgba(255,255,255,0.1);
+            border-bottom: 2px solid #84cc16;
+            color: white;
+        }
+        .sub-tab-inactive {
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+        }
+        .sub-tab-inactive:hover {
+            color: #94a3b8;
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* 3D Card Flip Animation */
+        .card-flip-container {
+            perspective: 1000px;
+        }
+        .card-flip-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+        }
+        .card-flip-container:hover .card-flip-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 1rem;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Card Hover Glow */
+        .credit-card {
+            transition: all 0.4s ease;
+        }
+        .credit-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(132, 204, 22, 0.3);
+        }
+
+        /* Content Fade Animation */
+        .content-fade {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col" x-data="financeApp()">
+
+    <!-- Aurora Background -->
+    <div class="aurora-bg">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="glass border-b border-white/5 sticky top-0 z-50">
+        <div class="max-w-[1920px] mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-lime-400 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-lime-500/30 animate-pulse-slow">
+                    <i data-lucide="bar-chart-3" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">Aurora<span class="text-lime-400">Finance</span></h1>
+                    <p class="text-xs text-slate-400">Dashboard Inteligente</p>
+                </div>
+            </div>
+            
+            <!-- Global Stats -->
+            <div class="hidden lg:flex items-center gap-8">
+                <div class="text-center">
+                    <p class="text-xs text-slate-400 mb-1">Receita Anual</p>
+                    <p class="text-lg font-bold text-lime-400" x-text="formatMoney(annualIncome)"></p>
+                </div>
+                <div class="text-center">
+                    <p class="text-xs text-slate-400 mb-1">Despesa Anual</p>
+                    <p class="text-lg font-bold text-rose-400" x-text="formatMoney(annualExpense)"></p>
+                </div>
+                <div class="text-center pl-8 border-l border-white/10">
+                    <p class="text-xs text-slate-400 mb-1">Saldo Total</p>
+                    <p class="text-lg font-bold text-cyan-400" x-text="formatMoney(globalBalance)"></p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-lime-500/30 overflow-hidden animate-float">
+                    <img src="https://ui-avatars.com/api/?name=User&background=84cc16&color=fff" alt="User">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="glass border-b border-white/5 sticky top-20 z-40">
+        <div class="max-w-[1920px] mx-auto px-6">
+            <div class="flex gap-2">
+                <button @click="mainTab = 'dashboard'" 
+                    class="flex-1 py-4 px-6 rounded-t-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+                    :class="mainTab === 'dashboard' ? 'main-tab-active' : 'main-tab-inactive'">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span class="hidden md:inline">Dashboard</span>
+                </button>
+                <button @click="mainTab = 'monthly'" 
+                    class="flex-1 py-4 px-6 rounded-t-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+                    :class="mainTab === 'monthly' ? 'main-tab-active' : 'main-tab-inactive'">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                    <span class="hidden md:inline">Controle Mensal</span>
+                </button>
+                <button @click="mainTab = 'cards'" 
+                    class="flex-1 py-4 px-6 rounded-t-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+                    :class="mainTab === 'cards' ? 'main-tab-active' : 'main-tab-inactive'">
+                    <i data-lucide="credit-card" class="w-5 h-5"></i>
+                    <span class="hidden md:inline">Cartões</span>
+                </button>
+                <button @click="mainTab = 'reports'" 
+                    class="flex-1 py-4 px-6 rounded-t-xl font-medium transition-all duration-300 flex items-center justify-center gap-2"
+                    :class="mainTab === 'reports' ? 'main-tab-active' : 'main-tab-inactive'">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                    <span class="hidden md:inline">Relatórios</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-[1920px] mx-auto w-full px-6 py-8 overflow-y-auto">
+        
+        <!-- ==================== DASHBOARD TAB ==================== -->
+        <div x-show="mainTab === 'dashboard'" x-transition.opacity class="content-fade space-y-8">
+            
+            <!-- Sub Tabs for Dashboard -->
+            <div class="flex gap-4 border-b border-white/10 pb-2">
+                <button @click="dashSubTab = 'overview'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="dashSubTab === 'overview' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Visão Geral
+                </button>
+                <button @click="dashSubTab = 'trends'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="dashSubTab === 'trends' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Tendências
+                </button>
+                <button @click="dashSubTab = 'alerts'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="dashSubTab === 'alerts' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Alertas
+                </button>
+            </div>
+
+            <!-- Dashboard Overview Content -->
+            <div x-show="dashSubTab === 'overview'">
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="glass rounded-2xl p-6 relative overflow-hidden group hover:animate-glow">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-lime-500/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-lime-500/20 transition-all"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 rounded-xl bg-lime-500/20 text-lime-400">
+                                    <i data-lucide="trending-up" class="w-6 h-6"></i>
+                                </div>
+                                <span class="text-xs text-lime-400 bg-lime-500/10 px-2 py-1 rounded-full border border-lime-500/20">+12%</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-1">Receita Mensal</p>
+                            <h3 class="text-3xl font-bold text-white" x-text="formatMoney(activeMonthTotalIncome)"></h3>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 relative overflow-hidden group hover:animate-glow">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-rose-500/20 transition-all"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 rounded-xl bg-rose-500/20 text-rose-400">
+                                    <i data-lucide="trending-down" class="w-6 h-6"></i>
+                                </div>
+                                <span class="text-xs text-rose-400 bg-rose-500/10 px-2 py-1 rounded-full border border-rose-500/20">+5%</span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-1">Despesas Totais</p>
+                            <h3 class="text-3xl font-bold text-white" x-text="formatMoney(activeMonthTotalExpense)"></h3>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 relative overflow-hidden group hover:animate-glow">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-blue-500/20 transition-all"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 rounded-xl bg-blue-500/20 text-blue-400">
+                                    <i data-lucide="wallet" class="w-6 h-6"></i>
+                                </div>
+                                <span class="text-xs" :class="activeMonthBalance >= 0 ? 'text-lime-400 bg-lime-500/10' : 'text-rose-400 bg-rose-500/10'" 
+                                      x-text="activeMonthBalance >= 0 ? 'Positivo' : 'Negativo'"></span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-1">Saldo do Mês</p>
+                            <h3 class="text-3xl font-bold text-white" :class="activeMonthBalance >= 0 ? 'text-lime-400' : 'text-rose-400'" x-text="formatMoney(activeMonthBalance)"></h3>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 relative overflow-hidden group hover:animate-glow">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-purple-500/20 transition-all"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-3 rounded-xl bg-purple-500/20 text-purple-400">
+                                    <i data-lucide="credit-card" class="w-6 h-6"></i>
+                                </div>
+                                <span class="text-xs text-purple-400 bg-purple-500/10 px-2 py-1 rounded-full border border-purple-500/20" x-text="cards.length + ' Cartões'"></span>
+                            </div>
+                            <p class="text-sm text-slate-400 mb-1">Gasto em Cartões</p>
+                            <h3 class="text-3xl font-bold text-white" x-text="formatMoney(totalCardSpend)"></h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="lg:col-span-2 glass rounded-2xl p-6 border border-white/5">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-lg font-bold text-white">Evolução Anual</h3>
+                                <p class="text-sm text-slate-400">Receitas vs Despesas</p>
+                            </div>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="areaChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 border border-white/5">
+                        <div class="flex items-center justify-between mb-6">
+                            <div>
+                                <h3 class="text-lg font-bold text-white">Distribuição</h3>
+                                <p class="text-sm text-slate-400">Por categoria</p>
+                            </div>
+                        </div>
+                        <div class="h-64 relative">
+                            <canvas id="donutChart"></canvas>
+                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div class="text-center">
+                                    <p class="text-xs text-slate-400">Total</p>
+                                    <p class="text-lg font-bold text-white" x-text="formatMoney(activeMonthTotalExpense)"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Trends Content -->
+            <div x-show="dashSubTab === 'trends'">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-2xl p-6 border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Saldo Mensal</h3>
+                        <div class="h-80">
+                            <canvas id="barChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass rounded-2xl p-6 border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Gastos com Cartão</h3>
+                        <div class="h-80">
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Alerts Content -->
+            <div x-show="dashSubTab === 'alerts'">
+                <div class="glass rounded-2xl p-6 border border-white/5">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <i data-lucide="bell" class="text-yellow-400"></i>
+                        Alertas Financeiros
+                    </h3>
+                    <div class="space-y-4">
+                        <template x-for="alert in getAlerts()" :key="alert.id">
+                            <div class="flex items-center gap-4 p-4 rounded-xl" 
+                                 :class="alert.type === 'warning' ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-blue-500/10 border border-blue-500/30'">
+                                <div class="p-3 rounded-full" :class="alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'">
+                                    <i :data-lucide="alert.type === 'warning' ? 'triangle-alert' : 'info'" class="w-5 h-5"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-medium text-white" x-text="alert.title"></p>
+                                    <p class="text-sm text-slate-400" x-text="alert.message"></p>
+                                </div>
+                                <button class="text-slate-500 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MONTHLY CONTROL TAB ==================== -->
+        <div x-show="mainTab === 'monthly'" x-transition.opacity class="content-fade space-y-6">
+            
+            <!-- Month Selector -->
+            <div class="flex items-center justify-between glass rounded-2xl p-4 border border-white/5">
+                <button @click="changeMonth(-1)" class="p-3 hover:bg-white/10 rounded-xl transition-colors">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold text-white" x-text="months[currentMonthIndex].name"></h2>
+                    <p class="text-sm text-slate-400" x-text="months[currentMonthIndex].year"></p>
+                </div>
+                <button @click="changeMonth(1)" class="p-3 hover:bg-white/10 rounded-xl transition-colors">
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Sub Tabs for Monthly -->
+            <div class="flex gap-4 border-b border-white/10 pb-2">
+                <button @click="monthlySubTab = 'transactions'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="monthlySubTab === 'transactions' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Transações
+                </button>
+                <button @click="monthlySubTab = 'budget'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="monthlySubTab === 'budget' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Orçamento
+                </button>
+                <button @click="monthlySubTab = 'goals'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="monthlySubTab === 'goals' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Metas
+                </button>
+            </div>
+
+            <!-- Transactions Content -->
+            <div x-show="monthlySubTab === 'transactions'" class="glass rounded-2xl border border-white/5 overflow-hidden">
+                <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Todas as Transações</h3>
+                        <p class="text-sm text-slate-400">Receitas e despesas do mês</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="showAddModal('income')" class="px-4 py-2 rounded-xl bg-lime-500/20 text-lime-400 hover:bg-lime-500/30 border border-lime-500/30 text-sm font-medium transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Receita
+                        </button>
+                        <button @click="showAddModal('expense')" class="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/30 text-sm font-medium transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Despesa
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-white/5">
+                            <tr class="text-xs text-slate-400 uppercase tracking-wider">
+                                <th class="px-6 py-4 text-left font-medium">Descrição</th>
+                                <th class="px-6 py-4 text-left font-medium">Categoria</th>
+                                <th class="px-6 py-4 text-left font-medium">Tipo</th>
+                                <th class="px-6 py-4 text-right font-medium">Valor</th>
+                                <th class="px-6 py-4 text-center font-medium">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <template x-for="item in [...activeMonth.incomeItems.map(i => ({...i, type: 'income'})), ...activeMonth.expenseItems.map(i => ({...i, type: 'expense'}))]" :key="item.id">
+                                <tr class="hover:bg-white/5 transition-colors group">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-xl flex items-center justify-center" 
+                                                 :class="item.type === 'income' ? 'bg-lime-500/20 text-lime-400' : 'bg-rose-500/20 text-rose-400'">
+                                                <i :data-lucide="item.type === 'income' ? 'arrow-down-left' : 'arrow-up-right'" class="w-5 h-5"></i>
+                                            </div>
+                                            <span class="font-medium text-white" x-text="item.desc"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-slate-300" x-text="item.category || 'Geral'"></span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-xs" :class="item.type === 'income' ? 'text-lime-400' : 'text-rose-400'"
+                                              x-text="item.type === 'income' ? 'Receita' : 'Despesa'"></span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <span class="font-bold" :class="item.type === 'income' ? 'text-lime-400' : 'text-rose-400'"
+                                              x-text="(item.type === 'income' ? '+ ' : '- ') + formatMoney(item.value)"></span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <button @click="removeItem(item.type, item.id)" class="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Budget Content -->
+            <div x-show="monthlySubTab === 'budget'">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass rounded-2xl p-6 border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Orçamento por Categoria</h3>
+                        <div class="space-y-4">
+                            <template x-for="cat in expenseCategories" :key="cat.name">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-2">
+                                        <span class="text-slate-300" x-text="cat.name"></span>
+                                        <span class="text-white font-medium" x-text="formatMoney(cat.value)"></span>
+                                    </div>
+                                    <div class="w-full bg-slate-700/50 h-3 rounded-full overflow-hidden">
+                                        <div class="bg-gradient-to-r from-lime-500 to-emerald-500 h-full rounded-full" 
+                                             :style="`width: ${Math.min((cat.value / activeMonthTotalExpense) * 100, 100)}%`"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="glass rounded-2xl p-6 border border-white/5">
+                        <h3 class="text-lg font-bold text-white mb-4">Resumo do Mês</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center p-4 rounded-xl bg-lime-500/10 border border-lime-500/20">
+                                <span class="text-slate-300">Receitas</span>
+                                <span class="text-xl font-bold text-lime-400" x-text="formatMoney(activeMonthTotalIncome)"></span>
+                            </div>
+                            <div class="flex justify-between items-center p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                                <span class="text-slate-300">Despesas</span>
+                                <span class="text-xl font-bold text-rose-400" x-text="formatMoney(activeMonthTotalExpense)"></span>
+                            </div>
+                            <div class="flex justify-between items-center p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                                <span class="text-slate-300">Saldo</span>
+                                <span class="text-xl font-bold text-cyan-400" x-text="formatMoney(activeMonthBalance)"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Goals Content -->
+            <div x-show="monthlySubTab === 'goals'">
+                <div class="glass rounded-2xl p-6 border border-white/5">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-white">Metas Financeiras</h3>
+                        <button class="px-4 py-2 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 text-sm font-medium transition-all flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Nova Meta
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-6 rounded-xl bg-gradient-to-br from-lime-500/10 to-emerald-500/10 border border-lime-500/20">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="p-3 rounded-xl bg-lime-500/20 text-lime-400">
+                                    <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+                                </div>
+                                <span class="font-medium text-white">Reserva de Emergência</span>
+                            </div>
+                            <div class="text-2xl font-bold text-lime-400 mb-2">R$ 15.000</div>
+                            <div class="w-full bg-slate-700/50 h-3 rounded-full overflow-hidden mb-2">
+                                <div class="bg-lime-500 h-full rounded-full" style="width: 60%"></div>
+                            </div>
+                            <p class="text-xs text-slate-400">60% concluído</p>
+                        </div>
+                        <div class="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="p-3 rounded-xl bg-purple-500/20 text-purple-400">
+                                    <i data-lucide="plane" class="w-6 h-6"></i>
+                                </div>
+                                <span class="font-medium text-white">Viagem 2024</span>
+                            </div>
+                            <div class="text-2xl font-bold text-purple-400 mb-2">R$ 8.000</div>
+                            <div class="w-full bg-slate-700/50 h-3 rounded-full overflow-hidden mb-2">
+                                <div class="bg-purple-500 h-full rounded-full" style="width: 35%"></div>
+                            </div>
+                            <p class="text-xs text-slate-400">35% concluído</p>
+                        </div>
+                        <div class="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="p-3 rounded-xl bg-blue-500/20 text-blue-400">
+                                    <i data-lucide="circle-help" class="w-6 h-6"></i>
+                                </div>
+                                <span class="font-medium text-white">Entrada Apartamento</span>
+                            </div>
+                            <div class="text-2xl font-bold text-blue-400 mb-2">R$ 50.000</div>
+                            <div class="w-full bg-slate-700/50 h-3 rounded-full overflow-hidden mb-2">
+                                <div class="bg-blue-500 h-full rounded-full" style="width: 20%"></div>
+                            </div>
+                            <p class="text-xs text-slate-400">20% concluído</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== CARDS TAB ==================== -->
+        <div x-show="mainTab === 'cards'" x-transition.opacity class="content-fade space-y-8">
+            
+            <!-- Sub Tabs for Cards -->
+            <div class="flex gap-4 border-b border-white/10 pb-2">
+                <button @click="cardsSubTab = 'my-cards'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="cardsSubTab === 'my-cards' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Meus Cartões
+                </button>
+                <button @click="cardsSubTab = 'installments'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="cardsSubTab === 'installments' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Parcelamentos
+                </button>
+                <button @click="cardsSubTab = 'invoices'" 
+                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                    :class="cardsSubTab === 'invoices' ? 'sub-tab-active' : 'sub-tab-inactive'">
+                    Faturas
+                </button>
+            </div>
+
+            <!-- My Cards Content -->
+            <div x-show="cardsSubTab === 'my-cards'">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Cartões Cadastrados</h3>
+                        <p class="text-sm text-slate-400">Gerencie seus cartões e limites</p>
+                    </div>
+                    <button @click="showAddCardModal = true" class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium shadow-lg shadow-purple-500/30 transition-all flex items-center gap-2">
+                        <i data-lucide="plus" class="w-5 h-5"></i> Adicionar Cartão
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <template x-for="card in cards" :key="card.id">
+                        <div class="card-flip-container h-64 cursor-pointer">
+                            <div class="card-flip-inner">
+                                <!-- Card Front -->
+                                <div class="card-front credit-card p-6 relative overflow-hidden" 
+                                     style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid rgba(168, 85, 247, 0.3);">
+                                    <div class="absolute top-0 right-0 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                                    <div class="absolute bottom-0 left-0 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl -ml-20 -mb-20"></div>
+                                    
+                                    <div class="relative z-10 h-full flex flex-col justify-between">
+                                        <div class="flex justify-between items-start">
+                                            <div class="w-12 h-8 rounded bg-gradient-to-br from-yellow-200 to-yellow-500 opacity-80"></div>
+                                            <button @click.stop="deleteCard(card.id)" class="text-slate-500 hover:text-rose-400 transition-colors">
+                                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="text-left">
+                                            <p class="text-xs text-slate-400 mb-1">Limite Utilizado</p>
+                                            <p class="text-2xl font-bold text-white" x-text="formatMoney(getCardSpend(card.id))"></p>
+                                            <p class="text-sm text-slate-400" x-text="'de ' + formatMoney(card.limit)"></p>
+                                        </div>
+                                        
+                                        <div class="w-full bg-slate-700/50 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full transition-all duration-500" 
+                                                 :style="`width: ${Math.min((getCardSpend(card.id) / card.limit) * 100, 100)}%`"></div>
+                                        </div>
+                                        
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-lg font-bold text-white tracking-wider" x-text="card.name"></span>
+                                            <i data-lucide="wifi" class="text-slate-400 rotate-90 w-5 h-5"></i>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Card Back -->
+                                <div class="card-back p-6 relative overflow-hidden" 
+                                     style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(168, 85, 247, 0.3);">
+                                    <div class="relative z-10 h-full flex flex-col justify-center items-center">
+                                        <div class="w-full h-12 bg-black mb-6"></div>
+                                        <p class="text-xs text-slate-400 mb-2">Código de Segurança</p>
+                                        <p class="text-2xl font-mono text-white tracking-widest">•••</p>
+                                        <p class="text-xs text-slate-500 mt-8">Vire para ver os detalhes</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Installments Content -->
+            <div x-show="cardsSubTab === 'installments'">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Parcelamentos Ativos</h3>
+                        <p class="text-sm text-slate-400">Acompanhe todas as suas compras parceladas</p>
+                    </div>
+                    <button @click="showAddInstallmentModal = true" :disabled="cards.length === 0" class="px-6 py-3 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 text-sm font-medium transition-all flex items-center gap-2" :class="cards.length === 0 ? 'opacity-50 cursor-not-allowed' : ''">
+                        <i data-lucide="plus" class="w-5 h-5"></i> Nova Compra
+                    </button>
+                </div>
+
+                <div class="glass rounded-2xl border border-white/5 overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-white/5">
+                            <tr class="text-xs text-slate-400 uppercase tracking-wider">
+                                <th class="px-6 py-4 text-left font-medium">Compra</th>
+                                <th class="px-6 py-4 text-left font-medium">Cartão</th>
+                                <th class="px-6 py-4 text-left font-medium">Parcelas</th>
+                                <th class="px-6 py-4 text-left font-medium">Valor/Parc</th>
+                                <th class="px-6 py-4 text-left font-medium">Total</th>
+                                <th class="px-6 py-4 text-center font-medium">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            <template x-for="inst in installments" :key="inst.id">
+                                <tr class="hover:bg-white/5 transition-colors group">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                                            </div>
+                                            <span class="font-medium text-white" x-text="inst.desc"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-sm text-slate-300" x-text="getCardName(inst.cardId)"></span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <span class="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-400" 
+                                                  x-text="inst.current + '/' + inst.installments"></span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="font-medium text-white" x-text="formatMoney(inst.value)"></span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-sm text-slate-400" x-text="formatMoney(inst.totalValue)"></span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <button @click="deleteInstallment(inst.id)" class="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Invoices Content -->
+            <div x-show="cardsSubTab === 'invoices'">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <template x-for="card in cards" :key="card.id">
+                        <div class="glass rounded-2xl p-6 border border-white/5">
+                            <div class="flex justify-between items-center mb-6">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center text-purple-400">
+                                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-white" x-text="card.name"></h4>
+                                        <p class="text-xs text-slate-400">Fatura Atual</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-2xl font-bold text-purple-400" x-text="formatMoney(getCardSpend(card.id))"></p>
+                                    <p class="text-xs text-slate-500">Vence em 5 dias</p>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <template x-for="inst in installments.filter(i => i.cardId === card.id)" :key="inst.id">
+                                    <div class="flex justify-between items-center p-3 rounded-xl bg-white/5">
+                                        <span class="text-sm text-slate-300" x-text="inst.desc"></span>
+                                        <span class="text-sm font-medium text-white" x-text="formatMoney(inst.value)"></span>
+                                    </div>
+                                </template>
+                                <div x-show="installments.filter(i => i.cardId === card.id).length === 0" class="text-center py-8 text-slate-500">
+                                    <p class="text-sm">Nenhuma compra neste cartão</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-6 pt-4 border-t border-white/5">
+                                <button class="w-full py-3 rounded-xl bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border border-purple-500/30 text-sm font-medium transition-all">
+                                    Pagar Fatura
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== REPORTS TAB ==================== -->
+        <div x-show="mainTab === 'reports'" x-transition.opacity class="content-fade space-y-8">
+            <div class="glass rounded-2xl p-6 border border-white/5">
+                <h3 class="text-xl font-bold text-white mb-6">Relatórios Financeiros</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-6 rounded-xl bg-gradient-to-br from-lime-500/10 to-emerald-500/10 border border-lime-500/20 hover:scale-105 transition-transform cursor-pointer">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-3 rounded-xl bg-lime-500/20 text-lime-400">
+                                <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+                            </div>
+                            <span class="font-medium text-white">Exportar Excel</span>
+                        </div>
+                        <p class="text-sm text-slate-400">Baixe todos os dados em formato planilha</p>
+                    </div>
+                    <div class="p-6 rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 hover:scale-105 transition-transform cursor-pointer">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-3 rounded-xl bg-blue-500/20 text-blue-400">
+                                <i data-lucide="file-text" class="w-6 h-6"></i>
+                            </div>
+                            <span class="font-medium text-white">Relatório PDF</span>
+                        </div>
+                        <p class="text-sm text-slate-400">Gere um relatório completo em PDF</p>
+                    </div>
+                    <div class="p-6 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 hover:scale-105 transition-transform cursor-pointer">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="p-3 rounded-xl bg-purple-500/20 text-purple-400">
+                                <i data-lucide="mail" class="w-6 h-6"></i>
+                            </div>
+                            <span class="font-medium text-white">Enviar por Email</span>
+                        </div>
+                        <p class="text-sm text-slate-400">Receba relatórios mensais automáticos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modals -->
+    
+    <!-- Add Item Modal -->
+    <div x-show="showModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="showModal = false"></div>
+        <div class="glass w-full max-w-md rounded-2xl p-6 relative z-10 animate-slide-in">
+            <h3 class="text-xl font-bold text-white mb-4" x-text="modalType === 'income' ? 'Adicionar Receita' : 'Adicionar Despesa'"></h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Descrição</label>
+                    <input type="text" x-model="newItem.desc" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="Ex: Salário, Aluguel...">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Valor (R$)</label>
+                        <input type="number" x-model="newItem.value" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Categoria</label>
+                        <input type="text" x-model="newItem.category" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="Ex: Casa">
+                    </div>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button @click="showModal = false" class="flex-1 py-3 rounded-xl text-slate-300 hover:bg-white/5 transition-colors">Cancelar</button>
+                    <button @click="confirmAddItem()" class="flex-1 py-3 rounded-xl font-bold text-white shadow-lg" 
+                            :class="modalType === 'income' ? 'bg-lime-600 hover:bg-lime-500' : 'bg-rose-600 hover:bg-rose-500'">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Card Modal -->
+    <div x-show="showAddCardModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="showAddCardModal = false"></div>
+        <div class="glass w-full max-w-md rounded-2xl p-6 relative z-10 animate-slide-in">
+            <h3 class="text-xl font-bold text-white mb-4">Novo Cartão</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Nome do Cartão</label>
+                    <input type="text" x-model="newCard.name" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="Ex: Nubank Gold">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Limite Total (R$)</label>
+                    <input type="number" x-model="newCard.limit" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="0.00">
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button @click="showAddCardModal = false" class="flex-1 py-3 rounded-xl text-slate-300 hover:bg-white/5">Cancelar</button>
+                    <button @click="confirmAddCard()" class="flex-1 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20">Criar Cartão</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Installment Modal -->
+    <div x-show="showAddInstallmentModal" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" @click="showAddInstallmentModal = false"></div>
+        <div class="glass w-full max-w-md rounded-2xl p-6 relative z-10 animate-slide-in">
+            <h3 class="text-xl font-bold text-white mb-4">Nova Compra Parcelada</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Cartão</label>
+                    <select x-model="newInstallment.cardId" class="glass-input w-full rounded-xl px-4 py-3 text-sm appearance-none">
+                        <option value="" disabled selected>Selecione...</option>
+                        <template x-for="card in cards" :key="card.id">
+                            <option :value="card.id" x-text="card.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Descrição</label>
+                    <input type="text" x-model="newInstallment.desc" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="Ex: iPhone 15">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Valor Total</label>
+                        <input type="number" x-model="newInstallment.totalValue" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="0.00">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 uppercase font-bold mb-1 block">Parcelas</label>
+                        <input type="number" x-model="newInstallment.installments" class="glass-input w-full rounded-xl px-4 py-3 text-sm" placeholder="12">
+                    </div>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button @click="showAddInstallmentModal = false" class="flex-1 py-3 rounded-xl text-slate-300 hover:bg-white/5">Cancelar</button>
+                    <button @click="confirmAddInstallment()" class="flex-1 py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function financeApp() {
+            return {
+                mainTab: 'dashboard',
+                dashSubTab: 'overview',
+                monthlySubTab: 'transactions',
+                cardsSubTab: 'my-cards',
+                currentMonthIndex: new Date().getMonth(),
+                showModal: false,
+                modalType: 'income',
+                showAddCardModal: false,
+                showAddInstallmentModal: false,
+                
+                newItem: { desc: '', value: '', category: '' },
+                newCard: { name: '', limit: '' },
+                newInstallment: { cardId: '', desc: '', totalValue: '', installments: '' },
+                
+                charts: {},
+
+                months: [
+                    { name: 'Janeiro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Fevereiro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Março', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Abril', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Maio', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Junho', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Julho', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Agosto', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Setembro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Outubro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Novembro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                    { name: 'Dezembro', year: 2024, incomeItems: [{id: 1, desc: 'Salário', value: 5000, category: 'Trabalho'}], expenseItems: [] },
+                ],
+
+                cards: [
+                    { id: 1, name: 'Nubank Platinum', limit: 10000 },
+                    { id: 2, name: 'XP Visa Infinite', limit: 25000 }
+                ],
+
+                installments: [
+                    { id: 1, cardId: 1, desc: 'MacBook Air', totalValue: 8000, installments: 10, current: 2, value: 800 },
+                    { id: 2, cardId: 2, desc: 'Viagem Férias', totalValue: 3000, installments: 6, current: 1, value: 500 }
+                ],
+
+                init() {
+                    setTimeout(() => {
+                        this.initCharts();
+                        lucide.createIcons();
+                    }, 100);
+
+                    this.$watch('months', () => { this.updateCharts(); setTimeout(() => lucide.createIcons(), 50); });
+                    this.$watch('cards', () => { this.updateCharts(); setTimeout(() => lucide.createIcons(), 50); });
+                    this.$watch('installments', () => { this.updateCharts(); setTimeout(() => lucide.createIcons(), 50); });
+                },
+
+                get activeMonth() {
+                    return this.months[this.currentMonthIndex];
+                },
+
+                get activeMonthTotalIncome() {
+                    return this.activeMonth.incomeItems.reduce((sum, item) => sum + Number(item.value), 0);
+                },
+
+                get activeMonthTotalExpense() {
+                    return this.activeMonth.expenseItems.reduce((sum, item) => sum + Number(item.value), 0);
+                },
+
+                get activeMonthBalance() {
+                    return this.activeMonthTotalIncome - this.activeMonthTotalExpense;
+                },
+
+                get globalBalance() {
+                    return this.months.reduce((acc, m) => {
+                        const inc = m.incomeItems.reduce((s, i) => s + Number(i.value), 0);
+                        const exp = m.expenseItems.reduce((s, i) => s + Number(i.value), 0);
+                        return acc + (inc - exp);
+                    }, 0);
+                },
+
+                get annualIncome() {
+                    return this.months.reduce((acc, m) => acc + m.incomeItems.reduce((s, i) => s + Number(i.value), 0), 0);
+                },
+
+                get annualExpense() {
+                    return this.months.reduce((acc, m) => acc + m.expenseItems.reduce((s, i) => s + Number(i.value), 0), 0);
+                },
+
+                get totalCardSpend() {
+                    return this.installments.reduce((acc, curr) => acc + Number(curr.value), 0);
+                },
+
+                get expenseCategories() {
+                    const categories = {};
+                    this.activeMonth.expenseItems.forEach(e => {
+                        categories[e.category] = (categories[e.category] || 0) + Number(e.value);
+                    });
+                    return Object.keys(categories).map(key => ({ name: key, value: categories[key] }));
+                },
+
+                formatMoney(value) {
+                    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+                },
+
+                getCardName(id) {
+                    const c = this.cards.find(x => x.id === Number(id));
+                    return c ? c.name : 'Desconhecido';
+                },
+
+                getCardSpend(cardId) {
+                    return this.installments.filter(i => i.cardId === Number(cardId)).reduce((acc, curr) => acc + Number(curr.value), 0);
+                },
+
+                changeMonth(delta) {
+                    this.currentMonthIndex = (this.currentMonthIndex + delta + 12) % 12;
+                },
+
+                getAlerts() {
+                    const alerts = [];
+                    if (this.activeMonthBalance < 0) {
+                        alerts.push({ id: 1, type: 'warning', title: 'Saldo Negativo', message: 'Suas despesas superaram suas receitas este mês.' });
+                    }
+                    this.cards.forEach(card => {
+                        const usage = getCardSpend(card.id) / card.limit;
+                        if (usage > 0.8) {
+                            alerts.push({ id: card.id, type: 'warning', title: 'Limite do Cartão', message: `${card.name} está com ${Math.round(usage * 100)}% do limite utilizado.` });
+                        }
+                    });
+                    return alerts;
+                },
+
+                showAddModal(type) {
+                    this.modalType = type;
+                    this.newItem = { desc: '', value: '', category: type === 'expense' ? 'Geral' : '' };
+                    this.showModal = true;
+                },
+
+                confirmAddItem() {
+                    if (!this.newItem.desc || !this.newItem.value) return;
+                    const item = {
+                        id: Date.now(),
+                        desc: this.newItem.desc,
+                        value: Number(this.newItem.value),
+                        category: this.newItem.category
+                    };
+                    if (this.modalType === 'income') {
+                        this.activeMonth.incomeItems.push(item);
+                    } else {
+                        this.activeMonth.expenseItems.push(item);
+                    }
+                    this.showModal = false;
+                },
+
+                removeItem(type, id) {
+                    if (type === 'income') {
+                        this.activeMonth.incomeItems = this.activeMonth.incomeItems.filter(i => i.id !== id);
+                    } else {
+                        this.activeMonth.expenseItems = this.activeMonth.expenseItems.filter(i => i.id !== id);
+                    }
+                },
+
+                confirmAddCard() {
+                    if (!this.newCard.name || !this.newCard.limit) return;
+                    this.cards.push({ id: Date.now(), name: this.newCard.name, limit: Number(this.newCard.limit) });
+                    this.showAddCardModal = false;
+                    this.newCard = { name: '', limit: '' };
+                },
+
+                deleteCard(id) {
+                    if(confirm('Tem certeza?')) this.cards = this.cards.filter(c => c.id !== id);
+                },
+
+                confirmAddInstallment() {
+                    if (!this.newInstallment.desc || !this.newInstallment.totalValue || !this.newInstallment.installments) return;
+                    const total = Number(this.newInstallment.totalValue);
+                    const count = Number(this.newInstallment.installments);
+                    const monthlyValue = total / count;
+                    const card = this.cards.find(c => c.id === Number(this.newInstallment.cardId));
+                    
+                    this.installments.push({
+                        id: Date.now(),
+                        cardId: Number(this.newInstallment.cardId),
+                        desc: this.newInstallment.desc,
+                        totalValue: total,
+                        installments: count,
+                        current: 1,
+                        value: monthlyValue
+                    });
+
+                    this.activeMonth.expenseItems.push({
+                        id: Date.now() + 1,
+                        desc: `Fatura ${card.name} (${this.newInstallment.desc})`,
+                        value: monthlyValue,
+                        category: 'Cartão de Crédito'
+                    });
+
+                    this.showAddInstallmentModal = false;
+                    this.newInstallment = { cardId: '', desc: '', totalValue: '', installments: '' };
+                },
+
+                deleteInstallment(id) {
+                    this.installments = this.installments.filter(i => i.id !== id);
+                },
+
+                initCharts() {
+                    const areaCtx = document.getElementById('areaChart')?.getContext('2d');
+                    if (areaCtx) {
+                        const gradientIncome = areaCtx.createLinearGradient(0, 0, 0, 400);
+                        gradientIncome.addColorStop(0, 'rgba(132, 204, 22, 0.5)');
+                        gradientIncome.addColorStop(1, 'rgba(132, 204, 22, 0)');
+                        
+                        const gradientExpense = areaCtx.createLinearGradient(0, 0, 0, 400);
+                        gradientExpense.addColorStop(0, 'rgba(244, 63, 94, 0.5)');
+                        gradientExpense.addColorStop(1, 'rgba(244, 63, 94, 0)');
+
+                        this.charts.area = new Chart(areaCtx, {
+                            type: 'line',
+                            data: this.getAreaChartData(),
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                                },
+                                elements: { line: { tension: 0.4, borderWidth: 2 }, point: { radius: 4, backgroundColor: '#84cc16', borderWidth: 2, borderColor: '#020617' } }
+                            }
+                        });
+                    }
+
+                    const donutCtx = document.getElementById('donutChart')?.getContext('2d');
+                    if (donutCtx) {
+                        this.charts.donut = new Chart(donutCtx, {
+                            type: 'doughnut',
+                            data: this.getDonutChartData(),
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '70%',
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+
+                    const barCtx = document.getElementById('barChart')?.getContext('2d');
+                    if (barCtx) {
+                        this.charts.bar = new Chart(barCtx, {
+                            type: 'bar',
+                            data: this.getBarChartData(),
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                                }
+                            }
+                        });
+                    }
+
+                    const lineCtx = document.getElementById('lineChart')?.getContext('2d');
+                    if (lineCtx) {
+                        const gradientLine = lineCtx.createLinearGradient(0, 0, 0, 400);
+                        gradientLine.addColorStop(0, 'rgba(168, 85, 247, 0.5)');
+                        gradientLine.addColorStop(1, 'rgba(168, 85, 247, 0)');
+
+                        this.charts.line = new Chart(lineCtx, {
+                            type: 'line',
+                            data: this.getLineChartData(),
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } },
+                                scales: {
+                                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
+                                },
+                                elements: { line: { tension: 0.4, borderWidth: 2, borderColor: '#a855f7' }, point: { radius: 4, backgroundColor: '#a855f7', borderWidth: 2, borderColor: '#020617' } }
+                            }
+                        });
+                    }
+                },
+
+                getAreaChartData() {
+                    const last6Months = this.months.slice(0, this.currentMonthIndex + 1);
+                    return {
+                        labels: last6Months.map(m => m.name.substring(0, 3)),
+                        datasets: [
+                            { label: 'Receitas', data: last6Months.map(m => m.incomeItems.reduce((s, i) => s + Number(i.value), 0)), borderColor: '#84cc16', backgroundColor: 'rgba(132, 204, 22, 0.5)', fill: true },
+                            { label: 'Despesas', data: last6Months.map(m => m.expenseItems.reduce((s, i) => s + Number(i.value), 0)), borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.5)', fill: true }
+                        ]
+                    };
+                },
+
+                getDonutChartData() {
+                    return {
+                        labels: this.expenseCategories.map(c => c.name),
+                        datasets: [{ data: this.expenseCategories.map(c => c.value), backgroundColor: ['#84cc16', '#a855f7', '#3b82f6', '#f43f5e', '#f59e0b', '#06b6d4'], borderWidth: 0 }]
+                    };
+                },
+
+                getBarChartData() {
+                    const startIdx = Math.max(0, this.currentMonthIndex - 5);
+                    const last6Months = this.months.slice(startIdx, this.currentMonthIndex + 1);
+                    return {
+                        labels: last6Months.map(m => m.name.substring(0, 3)),
+                        datasets: [{
+                            label: 'Saldo',
+                            data: last6Months.map(m => {
+                                const inc = m.incomeItems.reduce((s, i) => s + Number(i.value), 0);
+                                const exp = m.expenseItems.reduce((s, i) => s + Number(i.value), 0);
+                                return inc - exp;
+                            }),
+                            backgroundColor: last6Months.map(m => {
+                                const inc = m.incomeItems.reduce((s, i) => s + Number(i.value), 0);
+                                const exp = m.expenseItems.reduce((s, i) => s + Number(i.value), 0);
+                                return inc - exp >= 0 ? '#84cc16' : '#f43f5e';
+                            }),
+                            borderRadius: 8
+                        }]
+                    };
+                },
+
+                getLineChartData() {
+                    const last6Months = this.months.slice(0, this.currentMonthIndex + 1);
+                    return {
+                        labels: last6Months.map(m => m.name.substring(0, 3)),
+                        datasets: [{
+                            label: 'Gastos Cartão',
+                            data: last6Months.map(m => m.expenseItems.filter(e => e.category === 'Cartão de Crédito').reduce((s, i) => s + Number(i.value), 0)),
+                            borderColor: '#a855f7',
+                            backgroundColor: 'rgba(168, 85, 247, 0.5)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    };
+                },
+
+                updateCharts() {
+                    if (this.charts.area) { this.charts.area.data = this.getAreaChartData(); this.charts.area.update(); }
+                    if (this.charts.donut) { this.charts.donut.data = this.getDonutChartData(); this.charts.donut.update(); }
+                    if (this.charts.bar) { this.charts.bar.data = this.getBarChartData(); this.charts.bar.update(); }
+                    if (this.charts.line) { this.charts.line.data = this.getLineChartData(); this.charts.line.update(); }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
+
