@@ -24,7 +24,12 @@ export async function exportFinanceWorkbook(
       categoria: transaction.category,
       tipo: transaction.type === "income" ? "Receita" : "Despesa",
       valor: transaction.value,
-      origem: transaction.source === "manual" ? "Manual" : "Parcelamento"
+      origem:
+        transaction.source === "manual"
+          ? "Manual"
+          : transaction.source === "recurring"
+            ? "Recorrente"
+            : "Parcelamento"
     }))
   );
 

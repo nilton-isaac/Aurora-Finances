@@ -22,6 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CreditCard,
+  Eye,
+  EyeOff,
   FileText,
   Home,
   Landmark,
@@ -50,6 +52,7 @@ import type {
   MonthlySubTab,
   StorageMode,
   ToastItem,
+  Transaction,
   TransactionType
 } from "@/lib/finance-types";
 import { createEmptyFinanceData } from "@/lib/seed-data";
@@ -154,6 +157,8 @@ type TransactionFormState = {
   description: string;
   value: string;
   category: string;
+  recurring: boolean;
+  recurrenceEndMonthKey: string;
 };
 
 type CardFormState = {
@@ -291,6 +296,8 @@ export default function AuroraFinanceApp() {
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authBusy, setAuthBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [authForm, setAuthForm] = useState<AuthFormState>({
     email: "",
     password: "",
@@ -315,7 +322,9 @@ export default function AuroraFinanceApp() {
   const [transactionForm, setTransactionForm] = useState<TransactionFormState>({
     description: "",
     value: "",
-    category: ""
+    category: "",
+    recurring: false,
+    recurrenceEndMonthKey: ""
   });
   const [cardForm, setCardForm] = useState<CardFormState>({
     name: "",
@@ -677,7 +686,9 @@ export default function AuroraFinanceApp() {
     setTransactionForm({
       description: "",
       value: "",
-      category: nextType === "expense" ? EXPENSE_DEFAULT_CATEGORY : ""
+      category: nextType === "expense" ? EXPENSE_DEFAULT_CATEGORY : "",
+      recurring: false,
+      recurrenceEndMonthKey: ""
     });
     setShowTransactionModal(true);
   }
@@ -686,6 +697,7 @@ export default function AuroraFinanceApp() {
     const description = sanitizeText(transactionForm.description);
     const parsedValue = parseMoneyInput(transactionForm.value);
     const category = sanitizeText(transactionForm.category || "");
+    const recurrenceEndMonthKey = transactionForm.recurrenceEndMonthKey.trim();
 
     if (!description) {
       pushToast("error", "A descrição da transação é obrigatória.");
@@ -694,6 +706,15 @@ export default function AuroraFinanceApp() {
 
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
       pushToast("error", "Informe um valor maior que zero.");
+      return;
+    }
+
+    if (
+      transactionForm.recurring &&
+      recurrenceEndMonthKey &&
+      recurrenceEndMonthKey < selectedMonth.key
+    ) {
+      pushToast("error", "A recorrencia nao pode terminar antes do mes inicial.");
       return;
     }
 
@@ -711,7 +732,13 @@ export default function AuroraFinanceApp() {
           type: transactionType,
           monthKey: selectedMonth.key,
           createdAt: new Date().toISOString(),
-          source: "manual"
+          source: "manual",
+          recurrence: transactionForm.recurring
+            ? {
+                frequency: "monthly",
+                endMonthKey: recurrenceEndMonthKey || null
+              }
+            : null
         },
         ...current.transactions
       ]
@@ -720,27 +747,50 @@ export default function AuroraFinanceApp() {
     setShowTransactionModal(false);
     pushToast(
       "success",
-      transactionType === "income"
-        ? "Receita adicionada com sucesso."
-        : "Despesa adicionada com sucesso."
+      transactionForm.recurring
+        ? transactionType === "income"
+          ? "Receita recorrente configurada."
+          : "Despesa recorrente configurada."
+        : transactionType === "income"
+          ? "Receita adicionada com sucesso."
+          : "Despesa adicionada com sucesso."
     );
   }
 
-  function deleteTransaction(id: string, source: FinanceData["transactions"][number]["source"]) {
-    if (source !== "manual") {
+  function deleteTransaction(
+    id: string,
+    source: Transaction["source"],
+    recurringTransactionId?: string | null
+  ) {
+    if (source === "installment") {
       pushToast("info", "Parcelamentos são removidos pela aba Cartões.");
       return;
     }
 
-    if (!window.confirm("Remover esta transação?")) {
+    const targetId = source === "recurring" ? recurringTransactionId : id;
+
+    if (!targetId) {
+      return;
+    }
+
+    if (
+      !window.confirm(
+        source === "recurring"
+          ? "Remover a recorrência inteira desta transação?"
+          : "Remover esta transação?"
+      )
+    ) {
       return;
     }
 
     setData((current) => ({
       ...current,
-      transactions: current.transactions.filter((transaction) => transaction.id !== id)
+      transactions: current.transactions.filter((transaction) => transaction.id !== targetId)
     }));
-    pushToast("success", "Transação removida.");
+    pushToast(
+      "success",
+      source === "recurring" ? "Recorrência removida." : "Transação removida."
+    );
   }
 
   function submitCard() {
@@ -1142,34 +1192,60 @@ export default function AuroraFinanceApp() {
                 </FormField>
 
                 <FormField label="Senha">
-                  <input
-                    className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
-                    type="password"
-                    value={authForm.password}
-                    onChange={(event) =>
-                      setAuthForm((current) => ({
-                        ...current,
-                        password: event.target.value
-                      }))
-                    }
-                    placeholder="Minimo de 6 caracteres"
-                  />
+                  <div className="relative">
+                    <input
+                      className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 pr-12 text-slate-100"
+                      type={showPassword ? "text" : "password"}
+                      value={authForm.password}
+                      onChange={(event) =>
+                        setAuthForm((current) => ({
+                          ...current,
+                          password: event.target.value
+                        }))
+                      }
+                      placeholder="Minimo de 6 caracteres"
+                    />
+                    <button
+                      className="btn btn-ghost btn-sm absolute right-2 top-1/2 h-8 min-h-0 -translate-y-1/2 rounded-xl px-2 text-slate-400 hover:bg-white/8 hover:text-white"
+                      onClick={() => setShowPassword((current) => !current)}
+                      type="button"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                 </FormField>
 
                 {authMode === "signup" && (
                   <FormField label="Confirmar senha">
-                    <input
-                      className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
-                      type="password"
-                      value={authForm.confirmPassword}
-                      onChange={(event) =>
-                        setAuthForm((current) => ({
-                          ...current,
-                          confirmPassword: event.target.value
-                        }))
-                      }
-                      placeholder="Repita a senha"
-                    />
+                    <div className="relative">
+                      <input
+                        className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 pr-12 text-slate-100"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={authForm.confirmPassword}
+                        onChange={(event) =>
+                          setAuthForm((current) => ({
+                            ...current,
+                            confirmPassword: event.target.value
+                          }))
+                        }
+                        placeholder="Repita a senha"
+                      />
+                      <button
+                        className="btn btn-ghost btn-sm absolute right-2 top-1/2 h-8 min-h-0 -translate-y-1/2 rounded-xl px-2 text-slate-400 hover:bg-white/8 hover:text-white"
+                        onClick={() => setShowConfirmPassword((current) => !current)}
+                        type="button"
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </FormField>
                 )}
 
@@ -1203,7 +1279,7 @@ export default function AuroraFinanceApp() {
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-5 sm:px-6 xl:px-8">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-lime-400 to-emerald-600 text-slate-950 shadow-lg shadow-lime-500/20">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-lime-300/10 text-lime-200">
                 <Landmark className="h-7 w-7" />
               </div>
               <div>
@@ -1211,9 +1287,6 @@ export default function AuroraFinanceApp() {
                   <h1 className="text-2xl font-semibold text-white">
                     Aurora <span className="text-lime-300">Finance</span>
                   </h1>
-                  <Badge color={storageMode === "database" ? "emerald" : "gray"}>
-                    {storageMode === "database" ? "Banco conectado" : "Modo local"}
-                  </Badge>
                   <Badge
                     color={
                       syncStatus === "synced"
@@ -1237,15 +1310,17 @@ export default function AuroraFinanceApp() {
                   </Badge>
                 </div>
                 <p className="text-sm text-slate-400">
-                  Dashboard financeiro funcional em React, Tremor e daisyUI.
-                  {lastSyncedLabel ? ` Última sync: ${lastSyncedLabel}.` : ""}
+                  {storageMode === "database"
+                    ? "Dados sincronizados com o banco da conta."
+                    : "Conexao com o banco indisponivel no momento."}
+                  {lastSyncedLabel ? ` Ultima sync: ${lastSyncedLabel}.` : ""}
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Badge color="cyan">{userEmail}</Badge>
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <p className="text-sm text-slate-400">{userEmail}</p>
                 <button
                   className="btn btn-sm rounded-2xl border-white/10 bg-white/6 text-white hover:bg-white/10"
                   disabled={authBusy}
@@ -1295,8 +1370,8 @@ export default function AuroraFinanceApp() {
       </div>
 
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pt-8 sm:px-6 xl:px-8">
-        <section className="glass-panel rounded-[2rem] p-4 shadow-2xl shadow-slate-950/20 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="glass-panel rounded-[2rem] p-4 sm:p-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-slate-400">
                 Mês ativo
@@ -1309,7 +1384,7 @@ export default function AuroraFinanceApp() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-nowrap items-center justify-start gap-2 lg:w-auto lg:justify-end">
               <button
                 className="btn btn-ghost btn-sm rounded-2xl text-slate-200"
                 onClick={() => {
@@ -1323,7 +1398,7 @@ export default function AuroraFinanceApp() {
               </button>
 
               <select
-                className="select select-bordered w-full min-w-52 rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
+                className="select select-bordered min-w-0 flex-1 rounded-2xl border-white/10 bg-slate-900/70 text-slate-100 sm:min-w-64 lg:w-72 lg:flex-none"
                 value={selectedMonth.key}
                 onChange={(event) =>
                   updateUi("selectedMonthKey", event.target.value)
@@ -1561,7 +1636,7 @@ export default function AuroraFinanceApp() {
                       Todas as transações
                     </h3>
                     <p className="text-sm text-slate-400">
-                      Receitas, despesas manuais e parcelas do mês.
+                      Receitas, despesas manuais, recorrências e parcelas do mês.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1621,6 +1696,14 @@ export default function AuroraFinanceApp() {
                                       Lançamento automático de parcelamento
                                     </p>
                                   )}
+                                  {transaction.source === "recurring" && (
+                                    <p className="text-xs text-cyan-300">
+                                      Lançamento recorrente mensal
+                                      {transaction.recurrence?.endMonthKey
+                                        ? ` até ${monthName(transaction.recurrence.endMonthKey)}`
+                                        : " sem data final"}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -1653,12 +1736,16 @@ export default function AuroraFinanceApp() {
                             <td className="px-6 py-4 text-right">
                               <button
                                 className={`btn btn-ghost btn-sm rounded-2xl ${
-                                  transaction.source === "manual"
+                                  transaction.source !== "installment"
                                     ? "text-slate-400 hover:text-rose-300"
                                     : "text-slate-600"
                                 }`}
                                 onClick={() =>
-                                  deleteTransaction(transaction.id, transaction.source)
+                                  deleteTransaction(
+                                    transaction.id,
+                                    transaction.source,
+                                    transaction.recurringTransactionId
+                                  )
                                 }
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -2310,6 +2397,53 @@ export default function AuroraFinanceApp() {
                 placeholder={transactionType === "expense" ? "Geral" : "Receita"}
               />
             </FormField>
+          </div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-white">Transação recorrente</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Repete automaticamente este lançamento todos os meses.
+                </p>
+              </div>
+              <input
+                className="toggle toggle-info"
+                type="checkbox"
+                checked={transactionForm.recurring}
+                onChange={(event) =>
+                  setTransactionForm((current) => ({
+                    ...current,
+                    recurring: event.target.checked,
+                    recurrenceEndMonthKey: event.target.checked
+                      ? current.recurrenceEndMonthKey
+                      : ""
+                  }))
+                }
+              />
+            </div>
+
+            {transactionForm.recurring && (
+              <div className="mt-4 grid gap-2">
+                <label className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                  Encerrar no mês
+                </label>
+                <input
+                  className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
+                  type="month"
+                  min={selectedMonth.key}
+                  value={transactionForm.recurrenceEndMonthKey}
+                  onChange={(event) =>
+                    setTransactionForm((current) => ({
+                      ...current,
+                      recurrenceEndMonthKey: event.target.value
+                    }))
+                  }
+                />
+                <p className="text-xs text-slate-400">
+                  Deixe em branco para manter a recorrência sem data final.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

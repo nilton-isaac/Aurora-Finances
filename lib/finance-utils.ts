@@ -8,7 +8,8 @@ import type {
   Goal,
   InstallmentPlan,
   MonthOption,
-  Transaction
+  Transaction,
+  TransactionRecurrence
 } from "@/lib/finance-types";
 
 export const STORAGE_KEY = "aurora-finance:data:v1";
@@ -138,10 +139,84 @@ export function getInstallmentTransaction(
   };
 }
 
+function getRecurringTransactionCreatedAt(
+  transaction: Transaction,
+  targetMonthKey: string
+) {
+  const originalDate = new Date(transaction.createdAt);
+  const targetDate = parseMonthKey(targetMonthKey);
+  const lastDayOfMonth = new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth() + 1,
+    0
+  ).getDate();
+  const day = Math.min(originalDate.getDate(), lastDayOfMonth);
+
+  return new Date(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    day,
+    originalDate.getHours(),
+    originalDate.getMinutes(),
+    originalDate.getSeconds(),
+    originalDate.getMilliseconds()
+  ).toISOString();
+}
+
+function isRecurringTransactionActive(
+  transaction: Transaction,
+  monthKey: string,
+  recurrence: TransactionRecurrence
+) {
+  const diff = differenceInCalendarMonths(
+    parseMonthKey(monthKey),
+    parseMonthKey(transaction.monthKey)
+  );
+
+  if (diff < 0) {
+    return false;
+  }
+
+  if (recurrence.endMonthKey && monthKey > recurrence.endMonthKey) {
+    return false;
+  }
+
+  return recurrence.frequency === "monthly";
+}
+
+export function getRecurringTransactionOccurrence(
+  transaction: Transaction,
+  monthKey: string
+): Transaction | null {
+  const recurrence = transaction.recurrence;
+
+  if (!recurrence || !isRecurringTransactionActive(transaction, monthKey, recurrence)) {
+    return null;
+  }
+
+  return {
+    ...transaction,
+    id: `${transaction.id}:${monthKey}`,
+    monthKey,
+    createdAt: getRecurringTransactionCreatedAt(transaction, monthKey),
+    source: "recurring",
+    recurringTransactionId: transaction.id
+  };
+}
+
 export function getVisibleTransactions(data: FinanceData, monthKey: string) {
   const manualItems = data.transactions.filter(
-    (transaction) => transaction.monthKey === monthKey
+    (transaction) =>
+      transaction.source === "manual" &&
+      transaction.monthKey === monthKey &&
+      !transaction.recurrence
   );
+  const recurringItems = data.transactions
+    .filter(
+      (transaction) => transaction.source === "manual" && Boolean(transaction.recurrence)
+    )
+    .map((transaction) => getRecurringTransactionOccurrence(transaction, monthKey))
+    .filter((item): item is Transaction => item !== null);
   const installmentItems = data.installments
     .map((plan) =>
       getInstallmentTransaction(
@@ -152,7 +227,7 @@ export function getVisibleTransactions(data: FinanceData, monthKey: string) {
     )
     .filter((item): item is Transaction => item !== null);
 
-  return sortTransactions([...manualItems, ...installmentItems]);
+  return sortTransactions([...manualItems, ...recurringItems, ...installmentItems]);
 }
 
 export function getMonthIncome(data: FinanceData, monthKey: string) {

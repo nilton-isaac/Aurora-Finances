@@ -3,6 +3,7 @@ export type DashboardSubTab = "overview" | "trends" | "alerts";
 export type MonthlySubTab = "transactions" | "budget" | "goals";
 export type CardsSubTab = "my-cards" | "installments" | "invoices";
 export type TransactionType = "income" | "expense";
+export type TransactionSource = "manual" | "installment" | "recurring";
 export type GoalIcon = "piggy-bank" | "plane" | "house";
 export type AccentColor =
   | "emerald"
@@ -13,6 +14,11 @@ export type AccentColor =
   | "rose";
 export type StorageMode = "local" | "database";
 
+export interface TransactionRecurrence {
+  frequency: "monthly";
+  endMonthKey: string | null;
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -21,9 +27,11 @@ export interface Transaction {
   type: TransactionType;
   monthKey: string;
   createdAt: string;
-  source: "manual" | "installment";
+  source: TransactionSource;
   cardId?: string | null;
   installmentId?: string | null;
+  recurrence?: TransactionRecurrence | null;
+  recurringTransactionId?: string | null;
 }
 
 export interface CreditCard {

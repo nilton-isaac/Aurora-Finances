@@ -23,7 +23,7 @@ export interface Database {
           category: string;
           type: "income" | "expense";
           month_key: string;
-          source: "manual" | "installment";
+          source: "manual" | "installment" | "recurring";
           card_id: string | null;
           installment_id: string | null;
           created_at: string;
@@ -65,4 +65,3 @@ export interface Database {
     };
   };
 }
-

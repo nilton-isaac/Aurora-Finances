@@ -45,10 +45,9 @@ html,
 body {
   min-height: 100%;
   background:
-    radial-gradient(circle at 20% 20%, rgba(112, 214, 255, 0.12), transparent 25%),
-    radial-gradient(circle at 80% 15%, rgba(210, 156, 255, 0.14), transparent 30%),
-    radial-gradient(circle at 50% 85%, rgba(159, 232, 112, 0.12), transparent 26%),
-    #04101d;
+    radial-gradient(circle at 18% 16%, rgba(112, 214, 255, 0.08), transparent 22%),
+    radial-gradient(circle at 78% 12%, rgba(159, 232, 112, 0.06), transparent 24%),
+    linear-gradient(180deg, #07111d 0%, #091523 100%);
   color: #e5edf8;
 }
 
@@ -85,46 +84,46 @@ body {
   position: fixed;
   z-index: -2;
   content: "";
-  filter: blur(90px);
-  opacity: 0.75;
+  filter: blur(110px);
+  opacity: 0.36;
   border-radius: 999px;
 }
 
 .aurora-app::before {
-  top: -8rem;
-  left: -7rem;
-  width: 28rem;
-  height: 28rem;
-  background: rgba(121, 87, 255, 0.32);
-  animation: blob 20s infinite ease-in-out;
+  top: -10rem;
+  left: -9rem;
+  width: 24rem;
+  height: 24rem;
+  background: rgba(112, 214, 255, 0.16);
+  animation: blob 28s infinite ease-in-out;
 }
 
 .aurora-app::after {
-  right: -9rem;
-  bottom: -10rem;
-  width: 32rem;
-  height: 32rem;
-  background: rgba(45, 212, 191, 0.26);
-  animation: blob 24s infinite ease-in-out reverse;
+  right: -11rem;
+  bottom: -12rem;
+  width: 26rem;
+  height: 26rem;
+  background: rgba(159, 232, 112, 0.12);
+  animation: blob 32s infinite ease-in-out reverse;
 }
 
 .aurora-noise {
   position: fixed;
   inset: 0;
   z-index: -3;
-  opacity: 0.18;
+  opacity: 0.06;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 80px 80px;
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 120px 120px;
   mask-image: radial-gradient(circle at center, black, transparent 85%);
 }
 
 .glass-panel {
-  background: rgba(7, 17, 31, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 18px 60px rgba(2, 6, 23, 0.26);
-  backdrop-filter: blur(20px);
+  background: rgba(8, 18, 31, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 36px rgba(2, 6, 23, 0.18);
+  backdrop-filter: blur(14px);
 }
 
 .section-enter {
