@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import {
   AreaChart,
   Badge,
@@ -51,7 +52,8 @@ import type {
   ToastItem,
   TransactionType
 } from "@/lib/finance-types";
-import { createSeedFinanceData } from "@/lib/seed-data";
+import { createEmptyFinanceData } from "@/lib/seed-data";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   buildMonths,
   clampPositive,
@@ -78,7 +80,6 @@ import {
   parseMoneyInput,
   REPORT_FREQUENCIES,
   sanitizeText,
-  STORAGE_KEY,
   toMonthKey,
   UI_STORAGE_KEY,
   validateEmail,
@@ -178,6 +179,12 @@ type GoalFormState = {
   accent: Goal["accent"];
 };
 
+type AuthFormState = {
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
 type PersistedUiState = {
   mainTab: MainTab;
   dashboardSubTab: DashboardSubTab;
@@ -189,21 +196,7 @@ type PersistedUiState = {
 type SyncStatus = "booting" | "local" | "saving" | "synced" | "error";
 
 function readFinanceData() {
-  if (typeof window === "undefined") {
-    return createSeedFinanceData();
-  }
-
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!raw) {
-    return createSeedFinanceData();
-  }
-
-  try {
-    return JSON.parse(raw) as FinanceData;
-  } catch {
-    return createSeedFinanceData();
-  }
+  return createEmptyFinanceData();
 }
 
 function readUiState(currentMonthKey: string): PersistedUiState {
@@ -270,10 +263,39 @@ async function getApiError(response: Response) {
   }
 }
 
+function withAuthenticatedDefaults(
+  financeData: FinanceData,
+  userEmail?: string | null
+) {
+  const normalizedEmail = userEmail?.trim().toLowerCase() ?? "";
+
+  if (!normalizedEmail || financeData.reportPreferences.email.trim()) {
+    return financeData;
+  }
+
+  return {
+    ...financeData,
+    reportPreferences: {
+      ...financeData.reportPreferences,
+      email: normalizedEmail
+    }
+  };
+}
+
 export default function AuroraFinanceApp() {
   const today = new Date();
   const currentMonthKey = toMonthKey(today);
   const months = buildMonths(today.getFullYear());
+  const [supabase] = useState(() => getSupabaseBrowserClient());
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authForm, setAuthForm] = useState<AuthFormState>({
+    email: "",
+    password: "",
+    confirmPassword: ""
+  });
   const [data, setData] = useState<FinanceData>(() => readFinanceData());
   const [ui, setUi] = useState<PersistedUiState>(() => readUiState(currentMonthKey));
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -356,23 +378,79 @@ export default function AuroraFinanceApp() {
         timeStyle: "short"
       }).format(new Date(lastSyncedAt))
     : null;
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+  const accessToken = session?.access_token ?? null;
+  const sessionEmail = session?.user.email ?? null;
+  const userEmail = session?.user.email?.trim().toLowerCase() ?? "";
 
   useEffect(() => {
     window.localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(ui));
   }, [ui]);
 
   useEffect(() => {
+    if (!supabase) {
+      setAuthReady(true);
+      return;
+    }
+
+    let active = true;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) {
+        return;
+      }
+
+      setSession(session);
+      setAuthReady(true);
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthReady(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+
+    if (!accessToken) {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      setData(createEmptyFinanceData());
+      setStorageMode("local");
+      setSyncStatus("local");
+      setLastSyncedAt(null);
+      remoteLoadedRef.current = true;
+      remotePersistenceEnabledRef.current = false;
+      skipNextRemoteSaveRef.current = false;
+      return;
+    }
+
     let cancelled = false;
+    remoteLoadedRef.current = false;
+    remotePersistenceEnabledRef.current = false;
+    skipNextRemoteSaveRef.current = false;
+    setSyncStatus("booting");
 
     async function loadRemoteState() {
       try {
         const response = await fetch("/api/finance", {
           method: "GET",
-          cache: "no-store"
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
         });
 
         if (!response.ok) {
@@ -380,34 +458,34 @@ export default function AuroraFinanceApp() {
         }
 
         const payload = (await response.json()) as FinanceApiResponse;
+        const nextData = withAuthenticatedDefaults(payload.data, sessionEmail);
+        const shouldPersistDefaultEmail = nextData !== payload.data;
 
         if (cancelled) {
           return;
         }
 
-        setData(payload.data);
-        setStorageMode(payload.storageMode);
+        setData(nextData);
+        setStorageMode("database");
         setLastSyncedAt(payload.updatedAt);
         setSyncStatus("synced");
-        remotePersistenceEnabledRef.current = payload.storageMode === "database";
-        skipNextRemoteSaveRef.current = true;
-
-        if (payload.storageMode === "database") {
-          pushToast("success", "Conexão com Supabase/Postgres ativada.");
-        }
+        remotePersistenceEnabledRef.current = true;
+        skipNextRemoteSaveRef.current = !shouldPersistDefaultEmail;
       } catch (error) {
         if (cancelled) {
           return;
         }
 
+        setData(createEmptyFinanceData());
         setStorageMode("local");
-        setSyncStatus("local");
+        setLastSyncedAt(null);
+        setSyncStatus("error");
         remotePersistenceEnabledRef.current = false;
         pushToast(
-          "info",
+          "error",
           error instanceof Error
-            ? `${error.message} Usando cache local por enquanto.`
-            : "Conexão indisponível. Usando cache local por enquanto."
+            ? `Falha ao carregar os dados da conta: ${error.message}`
+            : "Falha ao carregar os dados da conta."
         );
       } finally {
         remoteLoadedRef.current = true;
@@ -419,10 +497,14 @@ export default function AuroraFinanceApp() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [accessToken, authReady, sessionEmail]);
 
   useEffect(() => {
-    if (!remoteLoadedRef.current || !remotePersistenceEnabledRef.current) {
+    if (
+      !accessToken ||
+      !remoteLoadedRef.current ||
+      !remotePersistenceEnabledRef.current
+    ) {
       return;
     }
 
@@ -442,7 +524,8 @@ export default function AuroraFinanceApp() {
         const response = await fetch("/api/finance", {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`
           },
           body: JSON.stringify({ data })
         });
@@ -462,15 +545,18 @@ export default function AuroraFinanceApp() {
             ? `Falha ao sincronizar com o banco: ${error.message}`
             : "Falha ao sincronizar com o banco."
         );
+      } finally {
+        saveTimerRef.current = null;
       }
     }, 700);
 
     return () => {
       if (saveTimerRef.current) {
         window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
       }
     };
-  }, [data]);
+  }, [accessToken, data]);
 
   function pushToast(tone: ToastItem["tone"], message: string) {
     const id = createId();
@@ -487,6 +573,103 @@ export default function AuroraFinanceApp() {
     value: PersistedUiState[K]
   ) {
     setUi((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submitAuthForm(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!supabase) {
+      pushToast("error", "Configure o Supabase Auth antes de entrar.");
+      return;
+    }
+
+    const email = authForm.email.trim().toLowerCase();
+    const password = authForm.password;
+
+    if (!validateEmail(email)) {
+      pushToast("error", "Informe um email valido.");
+      return;
+    }
+
+    if (password.length < 6) {
+      pushToast("error", "A senha precisa ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (authMode === "signup" && password !== authForm.confirmPassword) {
+      pushToast("error", "As senhas precisam ser iguais.");
+      return;
+    }
+
+    setAuthBusy(true);
+
+    try {
+      const result =
+        authMode === "signin"
+          ? await supabase.auth.signInWithPassword({
+              email,
+              password
+            })
+          : await supabase.auth.signUp({
+              email,
+              password
+            });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      setAuthForm({
+        email,
+        password: "",
+        confirmPassword: ""
+      });
+
+      if (authMode === "signup" && !result.data.session) {
+        pushToast("success", "Conta criada. Confirme o email para liberar o acesso.");
+        setAuthMode("signin");
+        return;
+      }
+
+      pushToast(
+        "success",
+        authMode === "signin"
+          ? "Login realizado com sucesso."
+          : "Conta criada e sessao iniciada."
+      );
+    } catch (error) {
+      pushToast(
+        "error",
+        error instanceof Error ? error.message : "Falha na autenticacao."
+      );
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function signOutCurrentUser() {
+    if (!supabase) {
+      return;
+    }
+
+    setAuthBusy(true);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      pushToast("info", "Sessao encerrada.");
+    } catch (error) {
+      pushToast(
+        "error",
+        error instanceof Error ? error.message : "Falha ao encerrar a sessao."
+      );
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   function openTransactionModal(nextType: TransactionType) {
@@ -783,14 +966,233 @@ export default function AuroraFinanceApp() {
     window.location.href = buildReportMailto(data, months, selectedMonth.key, email);
   }
 
-  function resetDemoData() {
-    if (!window.confirm("Restaurar os dados demo do Aurora Finance?")) {
+  function clearFinanceData() {
+    if (!window.confirm("Limpar todos os dados financeiros desta conta?")) {
       return;
     }
 
-    setData(createSeedFinanceData(today));
+    setData(withAuthenticatedDefaults(createEmptyFinanceData(), userEmail));
     updateUi("selectedMonthKey", currentMonthKey);
-    pushToast("info", "Dados demo restaurados.");
+    pushToast("info", "Dados da conta limpos.");
+  }
+
+  if (!supabase) {
+    return (
+      <main className="aurora-app min-h-screen">
+        <div className="aurora-noise" />
+        <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10 sm:px-6 xl:px-8">
+          <div className="glass-panel grid w-full max-w-5xl gap-8 rounded-[2rem] p-6 shadow-2xl shadow-slate-950/20 lg:grid-cols-[1.1fr_0.9fr] lg:p-8">
+            <div className="space-y-6">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-gradient-to-br from-lime-400 to-emerald-600 text-slate-950 shadow-lg shadow-lime-500/20">
+                <Landmark className="h-8 w-8" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-lime-300">
+                  Aurora Finance
+                </p>
+                <h1 className="mt-3 text-4xl font-semibold text-white">
+                  Dados por usuario, sem fallback aleatorio.
+                </h1>
+                <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">
+                  Para liberar login, sincronizacao e isolamento por conta, configure
+                  `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` no
+                  ambiente do projeto.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <StatusRow label="NEXT_PUBLIC_SUPABASE_URL" active={false} />
+                <StatusRow label="NEXT_PUBLIC_SUPABASE_ANON_KEY" active={false} />
+                <StatusRow label="DATABASE_URL" active />
+                <StatusRow label="DIRECT_URL" active />
+              </div>
+            </div>
+
+            <Card className="glass-panel rounded-[1.75rem] border-0 p-6 shadow-none">
+              <Title className="text-white">Configurar autenticacao</Title>
+              <Text className="mt-2 text-slate-400">
+                O backend ja esta pronto para salvar um snapshot por usuario em
+                `public.finance_state`. Falta somente a chave publica completa do
+                Supabase no browser.
+              </Text>
+              <div className="mt-6 space-y-4">
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  DATABASE_URL e DIRECT_URL conectam o Postgres.
+                </div>
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  NEXT_PUBLIC_SUPABASE_URL aponta para o projeto Supabase.
+                </div>
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  NEXT_PUBLIC_SUPABASE_ANON_KEY habilita login no client.
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+        <ToastViewport toasts={toasts} />
+      </main>
+    );
+  }
+
+  if (!authReady) {
+    return (
+      <main className="aurora-app min-h-screen">
+        <div className="aurora-noise" />
+        <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10 sm:px-6 xl:px-8">
+          <div className="glass-panel w-full max-w-xl rounded-[2rem] p-8 text-center shadow-2xl shadow-slate-950/20">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-lime-400/15 text-lime-300">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <h1 className="mt-6 text-3xl font-semibold text-white">
+              Validando sua sessao
+            </h1>
+            <p className="mt-3 text-base leading-7 text-slate-300">
+              O Aurora esta conferindo a autenticacao antes de carregar os dados
+              financeiros da conta.
+            </p>
+          </div>
+        </div>
+        <ToastViewport toasts={toasts} />
+      </main>
+    );
+  }
+
+  if (!session) {
+    return (
+      <main className="aurora-app min-h-screen">
+        <div className="aurora-noise" />
+        <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4 py-10 sm:px-6 xl:px-8">
+          <div className="grid w-full max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <section className="glass-panel rounded-[2rem] p-6 shadow-2xl shadow-slate-950/20 lg:p-8">
+              <div className="flex h-16 w-16 items-center justify-center rounded-[1.75rem] bg-gradient-to-br from-lime-400 to-emerald-600 text-slate-950 shadow-lg shadow-lime-500/20">
+                <Landmark className="h-8 w-8" />
+              </div>
+              <p className="mt-8 text-xs uppercase tracking-[0.35em] text-lime-300">
+                Aurora Finance
+              </p>
+              <h1 className="mt-3 text-4xl font-semibold text-white">
+                Cada conta enxerga apenas os proprios dados.
+              </h1>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-300">
+                Entre com email e senha para salvar transacoes, cartoes, metas e
+                relatorios no Supabase com isolamento por usuario autenticado.
+              </p>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <StatusRow label="Login Supabase obrigatorio" active />
+                <StatusRow label="Snapshot isolado por userId" active />
+                <StatusRow label="Sincronizacao com Postgres" active />
+                <StatusRow label="Pronto para Vercel" active />
+              </div>
+            </section>
+
+            <Card className="glass-panel rounded-[2rem] border-0 p-6 shadow-2xl shadow-slate-950/20 lg:p-8">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Title className="text-white">
+                    {authMode === "signin" ? "Entrar" : "Criar conta"}
+                  </Title>
+                  <Text className="mt-2 text-slate-400">
+                    Use as credenciais do proprio usuario para acessar os dados.
+                  </Text>
+                </div>
+                <Badge color={authMode === "signin" ? "cyan" : "emerald"}>
+                  {authMode === "signin" ? "Login" : "Cadastro"}
+                </Badge>
+              </div>
+
+              <div className="mt-6 flex rounded-[1.25rem] border border-white/10 bg-white/5 p-1">
+                <button
+                  className={`flex-1 rounded-[1rem] px-4 py-2 text-sm transition ${
+                    authMode === "signin"
+                      ? "bg-white text-slate-900"
+                      : "text-slate-300 hover:bg-white/10"
+                  }`}
+                  onClick={() => setAuthMode("signin")}
+                  type="button"
+                >
+                  Entrar
+                </button>
+                <button
+                  className={`flex-1 rounded-[1rem] px-4 py-2 text-sm transition ${
+                    authMode === "signup"
+                      ? "bg-white text-slate-900"
+                      : "text-slate-300 hover:bg-white/10"
+                  }`}
+                  onClick={() => setAuthMode("signup")}
+                  type="button"
+                >
+                  Criar conta
+                </button>
+              </div>
+
+              <form className="mt-6 grid gap-4" onSubmit={submitAuthForm}>
+                <FormField label="Email">
+                  <input
+                    className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
+                    type="email"
+                    value={authForm.email}
+                    onChange={(event) =>
+                      setAuthForm((current) => ({
+                        ...current,
+                        email: event.target.value
+                      }))
+                    }
+                    placeholder="voce@empresa.com"
+                  />
+                </FormField>
+
+                <FormField label="Senha">
+                  <input
+                    className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
+                    type="password"
+                    value={authForm.password}
+                    onChange={(event) =>
+                      setAuthForm((current) => ({
+                        ...current,
+                        password: event.target.value
+                      }))
+                    }
+                    placeholder="Minimo de 6 caracteres"
+                  />
+                </FormField>
+
+                {authMode === "signup" && (
+                  <FormField label="Confirmar senha">
+                    <input
+                      className="input input-bordered w-full rounded-2xl border-white/10 bg-slate-900/70 text-slate-100"
+                      type="password"
+                      value={authForm.confirmPassword}
+                      onChange={(event) =>
+                        setAuthForm((current) => ({
+                          ...current,
+                          confirmPassword: event.target.value
+                        }))
+                      }
+                      placeholder="Repita a senha"
+                    />
+                  </FormField>
+                )}
+
+                <button
+                  className="btn mt-2 rounded-2xl border-0 bg-lime-300 text-slate-950 hover:bg-lime-200"
+                  disabled={authBusy}
+                  type="submit"
+                >
+                  {authBusy
+                    ? authMode === "signin"
+                      ? "Entrando..."
+                      : "Criando..."
+                    : authMode === "signin"
+                      ? "Entrar no Aurora"
+                      : "Criar conta"}
+                </button>
+              </form>
+            </Card>
+          </div>
+        </div>
+        <ToastViewport toasts={toasts} />
+      </main>
+    );
   }
 
   return (
@@ -841,7 +1243,19 @@ export default function AuroraFinanceApp() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Badge color="cyan">{userEmail}</Badge>
+                <button
+                  className="btn btn-sm rounded-2xl border-white/10 bg-white/6 text-white hover:bg-white/10"
+                  disabled={authBusy}
+                  onClick={signOutCurrentUser}
+                >
+                  Sair
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <MetricPanel
                 label="Receita anual"
                 value={formatCompactCurrency(annualIncome)}
@@ -863,6 +1277,7 @@ export default function AuroraFinanceApp() {
                 tone="violet"
               />
             </div>
+          </div>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -1818,9 +2233,9 @@ export default function AuroraFinanceApp() {
                   </button>
                   <button
                     className="btn rounded-2xl border-0 bg-white/8 text-white hover:bg-white/12"
-                    onClick={resetDemoData}
+                    onClick={clearFinanceData}
                   >
-                    Restaurar demo
+                    Limpar dados
                   </button>
                 </div>
               </Card>
@@ -1832,11 +2247,11 @@ export default function AuroraFinanceApp() {
                 </Text>
 
                 <div className="mt-6 space-y-4">
-                  <StatusRow label="Persistência local funcional" active />
+                  <StatusRow label="Sessao autenticada do usuario" active />
                   <StatusRow label="Tailwind + daisyUI + Tremor integrados" active />
                   <StatusRow label="Schema Supabase incluído" active />
                   <StatusRow
-                    label="Conexão ativa com Postgres/Supabase"
+                    label="Dados isolados por usuario no banco"
                     active={storageMode === "database"}
                   />
                 </div>

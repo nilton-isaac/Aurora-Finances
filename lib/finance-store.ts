@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { FinanceApiResponse, FinanceData } from "@/lib/finance-types";
-import { createSeedFinanceData } from "@/lib/seed-data";
+import { createEmptyFinanceData } from "@/lib/seed-data";
 import {
   ensureFinanceStateTable,
   getSql,
@@ -14,7 +14,13 @@ type FinanceStateRow = {
   updated_at: string;
 };
 
-export async function loadFinanceState(): Promise<FinanceApiResponse | null> {
+function getScopedWorkspaceKey(userId: string) {
+  return `${getWorkspaceKey()}:${userId}`;
+}
+
+export async function loadFinanceState(
+  userId: string
+): Promise<FinanceApiResponse | null> {
   if (!isDatabaseConfigured()) {
     return null;
   }
@@ -27,7 +33,7 @@ export async function loadFinanceState(): Promise<FinanceApiResponse | null> {
 
   await ensureFinanceStateTable();
 
-  const workspaceKey = getWorkspaceKey();
+  const workspaceKey = getScopedWorkspaceKey(userId);
   const rows = await sql<FinanceStateRow[]>`
     select payload, updated_at
     from public.finance_state
@@ -36,8 +42,8 @@ export async function loadFinanceState(): Promise<FinanceApiResponse | null> {
   `;
 
   if (rows.length === 0) {
-    const seed = createSeedFinanceData();
-    const inserted = await saveFinanceState(seed);
+    const emptyState = createEmptyFinanceData();
+    const inserted = await saveFinanceState(userId, emptyState);
 
     return {
       data: inserted.data,
@@ -55,7 +61,7 @@ export async function loadFinanceState(): Promise<FinanceApiResponse | null> {
   };
 }
 
-export async function saveFinanceState(data: FinanceData) {
+export async function saveFinanceState(userId: string, data: FinanceData) {
   const sql = getSql();
 
   if (!sql) {
@@ -64,7 +70,7 @@ export async function saveFinanceState(data: FinanceData) {
 
   await ensureFinanceStateTable();
 
-  const workspaceKey = getWorkspaceKey();
+  const workspaceKey = getScopedWorkspaceKey(userId);
   const payload = JSON.parse(JSON.stringify(data));
   const rows = await sql<FinanceStateRow[]>`
     insert into public.finance_state (workspace_key, payload, updated_at)

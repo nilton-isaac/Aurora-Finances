@@ -1,14 +1,31 @@
 import { NextResponse } from "next/server";
 
+import { getAuthenticatedUserId } from "@/lib/api-auth";
 import { loadFinanceState, saveFinanceState } from "@/lib/finance-store";
 import { isFinanceData } from "@/lib/finance-validation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const state = await loadFinanceState();
+    const userId = await getAuthenticatedUserId(request);
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "Usuário não autenticado."
+        },
+        {
+          status: 401,
+          headers: {
+            "Cache-Control": "no-store"
+          }
+        }
+      );
+    }
+
+    const state = await loadFinanceState(userId);
 
     if (!state) {
       return NextResponse.json(
@@ -61,7 +78,20 @@ export async function PUT(request: Request) {
       );
     }
 
-    const saved = await saveFinanceState(body.data);
+    const userId = await getAuthenticatedUserId(request);
+
+    if (!userId) {
+      return NextResponse.json(
+        {
+          error: "Usuário não autenticado."
+        },
+        {
+          status: 401
+        }
+      );
+    }
+
+    const saved = await saveFinanceState(userId, body.data);
 
     return NextResponse.json(
       {

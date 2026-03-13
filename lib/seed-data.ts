@@ -5,6 +5,21 @@ import {
   toMonthKey
 } from "@/lib/finance-utils";
 
+export function createEmptyFinanceData(): FinanceData {
+  return {
+    version: 1,
+    transactions: [],
+    cards: [],
+    installments: [],
+    goals: [],
+    reportPreferences: {
+      email: "",
+      enabled: false,
+      frequency: "monthly"
+    }
+  };
+}
+
 export function createSeedFinanceData(referenceDate = new Date()): FinanceData {
   const year = referenceDate.getFullYear();
   const currentMonthIndex = referenceDate.getMonth();
